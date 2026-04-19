@@ -10,6 +10,13 @@ export default function Footer({ name, socialLinks }: { name: string, socialLink
     return null;
   };
 
+  const getDisplayName = (platform: string) => {
+    const lower = platform.toLowerCase();
+    if (lower.includes('인스타그램') || lower === 'instagram') return 'INSTAGRAM';
+    if (lower.includes('유튜브') || lower === 'youtube') return 'YOUTUBE';
+    return platform.toUpperCase();
+  };
+
   return (
     <footer className="py-[30px] px-8 md:px-[60px] border-t border-border mt-20 flex flex-col md:flex-row justify-between items-center transition-all bg-bg">
       <div className="flex gap-8 mb-4 md:mb-0">
@@ -26,7 +33,7 @@ export default function Footer({ name, socialLinks }: { name: string, socialLink
               <span className="opacity-60 group-hover:opacity-100 transition-opacity">
                 {getIcon(link.platform)}
               </span>
-              {link.platform}
+              {getDisplayName(link.platform)}
             </a>
           ))}
       </div>

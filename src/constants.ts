@@ -117,8 +117,8 @@ export const INITIAL_CONTENT: SiteContent = {
     avatar: 'https://picsum.photos/seed/artist/400/400',
   },
   socialLinks: [
-    { platform: '인스타그램', url: 'https://instagram.com' },
-    { platform: '유튜브', url: 'https://youtube.com' }
+    { platform: 'INSTAGRAM', url: 'https://instagram.com' },
+    { platform: 'YOUTUBE', url: 'https://youtube.com' }
   ],
   categories: [
     { id: '중계&음향', ko: '중계&음향', en: 'LIVE PRODUCTION', img: 'https://picsum.photos/seed/broadcast/1200/800' },

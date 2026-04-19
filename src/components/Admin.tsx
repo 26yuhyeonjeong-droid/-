@@ -328,25 +328,34 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {content.socialLinks
             .filter(link => !link.platform.toLowerCase().includes('vimeo') && !link.platform.includes('비메오'))
-            .map((link, index) => (
-              <div key={index} className="space-y-3">
-                <label className="text-[10px] uppercase tracking-[2px] text-text-secondary block">{link.platform}</label>
-                <input 
-                  value={link.url}
-                  onChange={(e) => {
-                    const newLinks = [...content.socialLinks];
-                    const actualIdx = content.socialLinks.findIndex(l => l.platform === link.platform);
-                    if (actualIdx !== -1) {
-                      newLinks[actualIdx] = { ...newLinks[actualIdx], url: e.target.value };
-                      const updated = { ...content, socialLinks: newLinks };
-                      setContent(updated);
-                      syncGlobalContent(updated);
-                    }
-                  }}
-                  className="w-full bg-surface border border-border p-4 outline-none focus:border-white/30 transition-all font-mono text-xs"
-                />
-              </div>
-            ))}
+            .map((link, index) => {
+              const getDisplayName = (platform: string) => {
+                const lower = platform.toLowerCase();
+                if (lower.includes('인스타그램') || lower === 'instagram') return 'INSTAGRAM';
+                if (lower.includes('유튜브') || lower === 'youtube') return 'YOUTUBE';
+                return platform.toUpperCase();
+              };
+
+              return (
+                <div key={index} className="space-y-3">
+                  <label className="text-[10px] uppercase tracking-[2px] text-text-secondary block">{getDisplayName(link.platform)}</label>
+                  <input 
+                    value={link.url}
+                    onChange={(e) => {
+                      const newLinks = [...content.socialLinks];
+                      const actualIdx = content.socialLinks.findIndex(l => l.platform === link.platform);
+                      if (actualIdx !== -1) {
+                        newLinks[actualIdx] = { ...newLinks[actualIdx], url: e.target.value };
+                        const updated = { ...content, socialLinks: newLinks };
+                        setContent(updated);
+                        syncGlobalContent(updated);
+                      }
+                    }}
+                    className="w-full bg-surface border border-border p-4 outline-none focus:border-white/30 transition-all font-mono text-xs"
+                  />
+                </div>
+              );
+            })}
         </div>
       </div>
 
