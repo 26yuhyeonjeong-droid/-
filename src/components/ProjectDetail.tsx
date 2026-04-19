@@ -58,12 +58,6 @@ export default function ProjectDetail({ projects, selectedCategory }: { projects
             <span className="text-[10px] uppercase tracking-[2px] text-text-secondary block mb-1 opacity-50">분류 / CLASSIFICATION</span>
             <span className="text-xs font-medium tracking-[1px] uppercase">{project.category}</span>
           </div>
-          {project.client && (
-            <div>
-              <span className="text-[10px] uppercase tracking-[2px] text-text-secondary block mb-1 opacity-50">클라이언트 / CLIENT</span>
-              <span className="text-xs font-medium tracking-[1px] uppercase leading-tight block">{project.client}</span>
-            </div>
-          )}
           {project.equipment && (
             <div>
               <span className="text-[10px] uppercase tracking-[2px] text-text-secondary block mb-1 opacity-50">장비 / PRODUCTION GEAR</span>
