@@ -62,18 +62,9 @@
       "schema": "Project",
       "description": "User portfolio projects"
     },
-    "/content/about": {
-      "description": "Information for the about page"
-    },
-    "/content/social": {
-      "description": "Social media links"
-    },
-    "/categories/{categoryId}": {
-      "description": "Category item with title and localized names"
-    },
     "/content/global": {
       "schema": "SiteContent",
-      "description": "Legacy unified configuration (maintained for fallback)"
+      "description": "Site-wide configuration and metadata"
     }
   }
 }

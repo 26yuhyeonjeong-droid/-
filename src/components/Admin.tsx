@@ -3,8 +3,8 @@ import { motion } from 'motion/react';
 import { Plus, Trash2, Edit3, X, Save, LogOut } from 'lucide-react';
 import { Project, SiteContent } from '../types';
 import { INITIAL_CONTENT } from '../constants';
-import { cn, compressImage } from '../lib/utils';
-import { db, auth, loginWithGoogle, logout, doc, setDoc, deleteDoc, collection } from '../lib/firebase';
+import { cn } from '../lib/utils';
+import { db, auth, loginWithGoogle, logout, doc, setDoc, deleteDoc } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import {
   DndContext,
@@ -76,27 +76,12 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
 
     setIsSaving(true);
     try {
-      // Compress thumbnail and media before saving if they are data URLs
-      const compressedThumbnail = await compressImage(editingProject.thumbnail);
-      const compressedMedia = await Promise.all(
-        editingProject.media.map(async (m) => {
-          if (m.startsWith('data:image')) return await compressImage(m);
-          return m;
-        })
-      );
-
-      const projectToCompress = {
-        ...editingProject,
-        thumbnail: compressedThumbnail,
-        media: compressedMedia
-      };
-
-      const existing = projects.find(p => p.id === projectToCompress.id);
+      const existing = projects.find(p => p.id === editingProject.id);
       const projectToSave = {
-        ...projectToCompress,
+        ...editingProject,
         order: (existing as any)?.order ?? projects.length
       };
-      await setDoc(doc(db, 'projects', projectToSave.id), projectToSave);
+      await setDoc(doc(db, 'projects', editingProject.id), projectToSave);
       setEditingProject(null);
     } catch (err) {
       console.error("Save Error:", err);
@@ -108,28 +93,7 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
 
   const syncGlobalContent = async (updatedContent: SiteContent) => {
     try {
-      // Split saving to avoid 1MB limit per document
-      const promises = [
-        setDoc(doc(db, 'content', 'about'), updatedContent.about),
-        setDoc(doc(db, 'content', 'social'), { links: updatedContent.socialLinks })
-      ];
-
-      if (updatedContent.categories) {
-        updatedContent.categories.forEach(cat => {
-          promises.push(setDoc(doc(db, 'categories', cat.id), cat));
-        });
-      }
-
-      // Also keep 'global' updated but try to keep it small if possible (optional: could stop writing global eventually)
-      // but for now let's write it to maintain the single sync point if it fits.
-      // If it fails, we still have the split docs.
-      try {
-        await setDoc(doc(db, 'content', 'global'), updatedContent);
-      } catch (e) {
-        console.warn("Global doc too large, split docs saved successfully.", e);
-      }
-
-      await Promise.all(promises);
+      await setDoc(doc(db, 'content', 'global'), updatedContent);
     } catch (err) {
       console.error("Content Sync Error:", err);
     }
@@ -141,8 +105,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
 
     Array.from(files).forEach(file => {
       const reader = new FileReader();
-      reader.onloadend = async () => {
-        const result = await compressImage(reader.result as string);
+      reader.onloadend = () => {
+        const result = reader.result as string;
         if (type === 'thumbnail') {
           setEditingProject(prev => prev ? { ...prev, thumbnail: result } : null);
         } else {
@@ -158,8 +122,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const result = await compressImage(reader.result as string);
+    reader.onloadend = () => {
+      const result = reader.result as string;
       const updated = { ...content, about: { ...content.about, avatar: result } };
       setContent(updated);
       syncGlobalContent(updated);
@@ -186,8 +150,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const result = await compressImage(reader.result as string);
+    reader.onloadend = () => {
+      const result = reader.result as string;
       const currentCats = content.categories || INITIAL_CONTENT.categories;
       const newCategories = currentCats.map(cat => 
         cat.id === categoryId ? { ...cat, img: result } : cat
@@ -279,10 +243,7 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     <div className="max-w-6xl mx-auto py-[40px] px-8 md:px-[60px]">
       <div className="flex justify-between items-center mb-12 border-b border-border pb-10">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-light tracking-tight uppercase">대시보드 / DASHBOARD</h1>
-            <span className="text-[9px] bg-white/10 text-white/40 px-2 py-0.5 rounded tracking-widest font-mono">V2.1 - LATEST</span>
-          </div>
+          <h1 className="text-3xl font-light tracking-tight uppercase">대시보드 / DASHBOARD</h1>
           <div className="flex items-center gap-4 mt-2">
             <p className="text-text-secondary text-[10px] uppercase tracking-widest italic opacity-50">{user.email}</p>
             <button onClick={handleLogout} className="text-[9px] uppercase tracking-widest text-text-secondary hover:text-white flex items-center gap-1">
@@ -399,38 +360,6 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
             <label className="text-[10px] uppercase tracking-[2px] text-text-secondary mb-3 block">바이오 / BIO</label>
             <textarea rows={6} value={content.about.bio} onChange={e => syncGlobalContent({ ...content, about: { ...content.about, bio: e.target.value }})} className="w-full bg-surface border border-border p-4 outline-none resize-none h-full" />
           </div>
-        </div>
-      </div>
-
-      {/* Category Management */}
-      <div className="border-t border-border pt-16 mb-24">
-        <div className="mb-10">
-          <h2 className="text-2xl font-light tracking-tight uppercase">카테고리 관리 / CATEGORY MANAGEMENT</h2>
-          <p className="text-text-secondary text-xs mt-2 uppercase tracking-widest italic opacity-50">홈 화면의 카테고리 썸네일을 관리합니다</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {categories.map((cat) => (
-            <div key={cat.id} className="space-y-4 bg-surface p-6 border border-border group transition-all hover:border-white/20">
-              <div className="aspect-[16/10] overflow-hidden relative">
-                <img src={cat.img || null} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" referrerPolicy="no-referrer" />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <label className="cursor-pointer bg-white text-black px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200">
-                    변경 / CHANGE
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => handleCategoryImgUpload(e, cat.id)} 
-                    />
-                  </label>
-                </div>
-              </div>
-              <div className="text-center">
-                <h3 className="text-[11px] font-light uppercase tracking-widest">{cat.ko}</h3>
-                <p className="text-[9px] text-text-secondary uppercase tracking-[2px] opacity-60">{cat.en}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
