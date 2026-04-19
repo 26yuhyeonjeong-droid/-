@@ -50,17 +50,52 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Sync content from Firestore
+  // Sync site content from Firestore (refactored to split documents)
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'content', 'global'), (snapshot) => {
+    const unsubAbout = onSnapshot(doc(db, 'content', 'about'), (snapshot) => {
       if (snapshot.exists()) {
-        setContent(snapshot.data() as SiteContent);
+        setContent(prev => ({ ...prev, about: snapshot.data() as any }));
       }
-    }, (error) => {
-      console.error("Firestore Content Sync Error:", error);
     });
 
-    return () => unsub();
+    const unsubSocial = onSnapshot(doc(db, 'content', 'social'), (snapshot) => {
+      if (snapshot.exists()) {
+        setContent(prev => ({ ...prev, socialLinks: (snapshot.data() as any).links || [] }));
+      }
+    });
+
+    const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
+      if (!snapshot.empty) {
+        const cats = snapshot.docs.map(doc => doc.data() as any);
+        setContent(prev => ({ ...prev, categories: cats }));
+      }
+    });
+
+    // Fallback for migration: still listen to global if any part is missing
+    const unsubGlobal = onSnapshot(doc(db, 'content', 'global'), (snapshot) => {
+      if (snapshot.exists()) {
+        const globalData = snapshot.data() as SiteContent;
+        setContent(prev => {
+          // Only use global if new fields are default/empty
+          const newAbout = !prev.about.avatar && globalData.about.avatar ? globalData.about : prev.about;
+          const newSocial = prev.socialLinks.length === 0 && globalData.socialLinks.length > 0 ? globalData.socialLinks : prev.socialLinks;
+          const newCats = (!prev.categories || prev.categories.length === 0) && globalData.categories?.length > 0 ? globalData.categories : prev.categories;
+          return {
+            ...prev,
+            about: newAbout,
+            socialLinks: newSocial,
+            categories: newCats
+          };
+        });
+      }
+    });
+
+    return () => {
+      unsubAbout();
+      unsubSocial();
+      unsubCategories();
+      unsubGlobal();
+    };
   }, []);
 
   // Initialize DB with default values if empty (optional but helpful for first run)

@@ -3,8 +3,8 @@ import { motion } from 'motion/react';
 import { Plus, Trash2, Edit3, X, Save, LogOut } from 'lucide-react';
 import { Project, SiteContent } from '../types';
 import { INITIAL_CONTENT } from '../constants';
-import { cn } from '../lib/utils';
-import { db, auth, loginWithGoogle, logout, doc, setDoc, deleteDoc } from '../lib/firebase';
+import { cn, compressImage } from '../lib/utils';
+import { db, auth, loginWithGoogle, logout, doc, setDoc, deleteDoc, collection } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import {
   DndContext,
@@ -76,12 +76,27 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
 
     setIsSaving(true);
     try {
-      const existing = projects.find(p => p.id === editingProject.id);
-      const projectToSave = {
+      // Compress thumbnail and media before saving if they are data URLs
+      const compressedThumbnail = await compressImage(editingProject.thumbnail);
+      const compressedMedia = await Promise.all(
+        editingProject.media.map(async (m) => {
+          if (m.startsWith('data:image')) return await compressImage(m);
+          return m;
+        })
+      );
+
+      const projectToCompress = {
         ...editingProject,
+        thumbnail: compressedThumbnail,
+        media: compressedMedia
+      };
+
+      const existing = projects.find(p => p.id === projectToCompress.id);
+      const projectToSave = {
+        ...projectToCompress,
         order: (existing as any)?.order ?? projects.length
       };
-      await setDoc(doc(db, 'projects', editingProject.id), projectToSave);
+      await setDoc(doc(db, 'projects', projectToSave.id), projectToSave);
       setEditingProject(null);
     } catch (err) {
       console.error("Save Error:", err);
@@ -93,7 +108,28 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
 
   const syncGlobalContent = async (updatedContent: SiteContent) => {
     try {
-      await setDoc(doc(db, 'content', 'global'), updatedContent);
+      // Split saving to avoid 1MB limit per document
+      const promises = [
+        setDoc(doc(db, 'content', 'about'), updatedContent.about),
+        setDoc(doc(db, 'content', 'social'), { links: updatedContent.socialLinks })
+      ];
+
+      if (updatedContent.categories) {
+        updatedContent.categories.forEach(cat => {
+          promises.push(setDoc(doc(db, 'categories', cat.id), cat));
+        });
+      }
+
+      // Also keep 'global' updated but try to keep it small if possible (optional: could stop writing global eventually)
+      // but for now let's write it to maintain the single sync point if it fits.
+      // If it fails, we still have the split docs.
+      try {
+        await setDoc(doc(db, 'content', 'global'), updatedContent);
+      } catch (e) {
+        console.warn("Global doc too large, split docs saved successfully.", e);
+      }
+
+      await Promise.all(promises);
     } catch (err) {
       console.error("Content Sync Error:", err);
     }
@@ -105,8 +141,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
 
     Array.from(files).forEach(file => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
+      reader.onloadend = async () => {
+        const result = await compressImage(reader.result as string);
         if (type === 'thumbnail') {
           setEditingProject(prev => prev ? { ...prev, thumbnail: result } : null);
         } else {
@@ -122,8 +158,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
+    reader.onloadend = async () => {
+      const result = await compressImage(reader.result as string);
       const updated = { ...content, about: { ...content.about, avatar: result } };
       setContent(updated);
       syncGlobalContent(updated);
@@ -150,8 +186,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
+    reader.onloadend = async () => {
+      const result = await compressImage(reader.result as string);
       const currentCats = content.categories || INITIAL_CONTENT.categories;
       const newCategories = currentCats.map(cat => 
         cat.id === categoryId ? { ...cat, img: result } : cat
