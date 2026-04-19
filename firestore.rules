@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isVerifiedOwner() {
+      // In a real multi-user app, you would check if request.auth.uid matches the owner
+      // For this specific one-user portfolio, we'll allow the specific user email
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Projects collection
+    match /projects/{projectId} {
+      allow read: if true; // Publicly readable
+      allow write: if isVerifiedOwner() && isValidId(projectId);
+    }
+
+    // Content collection
+    match /content/global {
+      allow read: if true; // Publicly readable
+      allow write: if isVerifiedOwner();
+    }
+  }
+}

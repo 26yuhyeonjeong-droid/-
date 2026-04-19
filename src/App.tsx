@@ -14,62 +14,66 @@ import ProjectDetail from './components/ProjectDetail';
 import About from './components/About';
 import Admin from './components/Admin';
 import Footer from './components/Footer';
+import { db, collection, onSnapshot, doc, getDoc, setDoc } from './lib/firebase';
 
 export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('portfolio_projects');
-    const data = saved ? JSON.parse(saved) : INITIAL_PROJECTS;
-    
-    // Migration: Add new sample projects if they are missing
-    INITIAL_PROJECTS.forEach(initialProject => {
-      if (!data.find((p: Project) => p.id === initialProject.id)) {
-        data.push(initialProject);
+  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [content, setContent] = useState<SiteContent>(INITIAL_CONTENT);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Sync projects from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
+      const projectsData = snapshot.docs.map(doc => doc.data() as Project);
+      if (projectsData.length > 0) {
+        // Sort by order if available, otherwise fallback to initial order
+        setProjects(projectsData.sort((a, b) => (a as any).order - (b as any).order || 0));
       }
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Firestore Projects Sync Error:", error);
+      setIsLoading(false);
     });
 
-    // Migration: Rename '중계' to '중계&음향' in projects
-    data.forEach((p: Project) => {
-      if (p.category === '중계') {
-        p.category = '중계&음향';
+    return () => unsub();
+  }, []);
+
+  // Sync content from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'content', 'global'), (snapshot) => {
+      if (snapshot.exists()) {
+        setContent(snapshot.data() as SiteContent);
       }
+    }, (error) => {
+      console.error("Firestore Content Sync Error:", error);
     });
-    
-    return data;
-  });
 
-  const [content, setContent] = useState<SiteContent>(() => {
-    const saved = localStorage.getItem('portfolio_content');
-    const data = saved ? JSON.parse(saved) : INITIAL_CONTENT;
-    
-    // Migration: Ensure '행사사진' category exists
-    if (data.categories) {
-      const hasEventCat = data.categories.some((c: any) => c.id === '행사사진');
-      if (!hasEventCat) {
-        const eventCat = INITIAL_CONTENT.categories?.find(c => c.id === '행사사진');
-        if (eventCat) {
-          data.categories.push(eventCat);
+    return () => unsub();
+  }, []);
+
+  // Initialize DB with default values if empty (optional but helpful for first run)
+  useEffect(() => {
+    const initDb = async () => {
+      try {
+        const contentDoc = await getDoc(doc(db, 'content', 'global'));
+        if (!contentDoc.exists()) {
+          await setDoc(doc(db, 'content', 'global'), INITIAL_CONTENT);
         }
+      } catch (e) {
+        console.warn("Could not initialize DB. Permissions might be restricted.");
       }
-      
-      // Migration: Sync all category English labels
-      data.categories.forEach((cat: any) => {
-        const initialCat = INITIAL_CONTENT.categories?.find(c => c.id === cat.id);
-        if (initialCat) {
-          cat.en = initialCat.en;
-        }
-      });
-    }
-    return data;
-  });
+    };
+    initDb();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('portfolio_projects', JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
-    localStorage.setItem('portfolio_content', JSON.stringify(content));
-  }, [content]);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-[10px] uppercase tracking-[4px] animate-pulse">Syncing Archive...</div>
+      </div>
+    );
+  }
 
   return (
     <Router>
