@@ -243,7 +243,10 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     <div className="max-w-6xl mx-auto py-[40px] px-8 md:px-[60px]">
       <div className="flex justify-between items-center mb-12 border-b border-border pb-10">
         <div>
-          <h1 className="text-3xl font-light tracking-tight uppercase">대시보드 / DASHBOARD</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-light tracking-tight uppercase">대시보드 / DASHBOARD</h1>
+            <span className="text-[9px] bg-white/10 text-white/40 px-2 py-0.5 rounded tracking-widest font-mono">V2.1 - LATEST</span>
+          </div>
           <div className="flex items-center gap-4 mt-2">
             <p className="text-text-secondary text-[10px] uppercase tracking-widest italic opacity-50">{user.email}</p>
             <button onClick={handleLogout} className="text-[9px] uppercase tracking-widest text-text-secondary hover:text-white flex items-center gap-1">

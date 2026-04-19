@@ -22,6 +22,17 @@ export default function App() {
   const [content, setContent] = useState<SiteContent>(INITIAL_CONTENT);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Safety timer for loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Loading timed out. Proceeding to app...");
+        setIsLoading(false);
+      }
+    }, 5000); // 5 seconds fallback
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   // Sync projects from Firestore
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
