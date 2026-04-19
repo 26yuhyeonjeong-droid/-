@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Pretendard", "Apple SD Gothic Neo", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  
+  --color-bg: #050505;
+  --color-surface: #111111;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #888888;
+  --color-accent: #E0E0E0;
+}
+
+@layer base {
+  body {
+    @apply antialiased bg-bg text-text-primary;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #000;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #222;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #333;
+  }
+}
+
+.mix-blend-exclusion {
+  mix-blend-mode: exclusion;
+}
+
+/* Featured project gradient overlay */
+.featured-gradient {
+  background: linear-gradient(transparent 60%, rgba(0,0,0,0.8));
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+
