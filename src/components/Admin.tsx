@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Edit3, X, Save, LogOut } from 'lucide-react';
 import { Project, SiteContent } from '../types';
@@ -37,6 +37,7 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -122,26 +123,36 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     }
   };
 
-  const syncGlobalContent = async (updatedContent: SiteContent) => {
-    // Immediately update local state to ensure responsive UI and prevent race conditions
+  const syncGlobalContent = (updatedContent: SiteContent) => {
+    // 1. Update UI immediately for responsiveness
     setContent(updatedContent);
-    try {
-      // Split saving to avoid 1MB limit per document
-      const promises = [
-        setDoc(doc(db, 'content', 'about'), updatedContent.about),
-        setDoc(doc(db, 'content', 'social'), { links: updatedContent.socialLinks })
-      ];
 
-      if (updatedContent.categories) {
-        updatedContent.categories.forEach(cat => {
-          promises.push(setDoc(doc(db, 'categories', cat.id), cat));
-        });
+    // 2. Debounce DB sync to prevent partial saves and rate limiting
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        console.log("Auto-syncing to Firestore...");
+        
+        // Save About and Social Links
+        const promises = [
+          setDoc(doc(db, 'content', 'about'), updatedContent.about),
+          setDoc(doc(db, 'content', 'social'), { links: updatedContent.socialLinks })
+        ];
+
+        // Only sync categories if they exist and to separate documents
+        if (updatedContent.categories) {
+          updatedContent.categories.forEach(cat => {
+            promises.push(setDoc(doc(db, 'categories', cat.id), cat));
+          });
+        }
+
+        await Promise.all(promises);
+        console.log("Firestore sync complete");
+      } catch (err) {
+        console.error("Content Sync Error:", err);
       }
-
-      await Promise.all(promises);
-    } catch (err) {
-      console.error("Content Sync Error:", err);
-    }
+    }, 1000); // 1.0 second debounce for continuous edits
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'thumbnail' | 'media') => {
