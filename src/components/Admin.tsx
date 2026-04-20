@@ -123,6 +123,8 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
   };
 
   const syncGlobalContent = async (updatedContent: SiteContent) => {
+    // Immediately update local state to ensure responsive UI and prevent race conditions
+    setContent(updatedContent);
     try {
       // Split saving to avoid 1MB limit per document
       const promises = [
@@ -134,15 +136,6 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
         updatedContent.categories.forEach(cat => {
           promises.push(setDoc(doc(db, 'categories', cat.id), cat));
         });
-      }
-
-      // Also keep 'global' updated but try to keep it small if possible (optional: could stop writing global eventually)
-      // but for now let's write it to maintain the single sync point if it fits.
-      // If it fails, we still have the split docs.
-      try {
-        await setDoc(doc(db, 'content', 'global'), updatedContent);
-      } catch (e) {
-        console.warn("Global doc too large, split docs saved successfully.", e);
       }
 
       await Promise.all(promises);
