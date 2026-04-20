@@ -47,11 +47,27 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
   }, []);
 
   const handleLogin = async () => {
+    if (!auth) {
+      alert("Firebase Auth가 초기화되지 않았습니다. 설정을 확인해 주세요.");
+      return;
+    }
     try {
+      console.log("Starting Google Login...");
       await loginWithGoogle();
-    } catch (err) {
-      console.error("Login Error:", err);
-      alert("로그인 중 오류가 발생했습니다 / Login Error");
+      console.log("Login successful");
+    } catch (err: any) {
+      console.error("Login Error Details:", err);
+      const errorMessage = err.message || "Unknown error";
+      const errorCode = err.code || "unknown";
+      
+      let analysis = "배포된 사이트 주소가 Firebase 콘솔의 '승인된 도메인'에 추가되었는지 확인이 필요합니다.";
+      if (errorCode === 'auth/popup-blocked') {
+        analysis = "브라우저에서 팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.";
+      } else if (errorCode === 'auth/unauthorized-domain') {
+        analysis = "현재 도메인이 Firebase 승인된 도메인 리스트에 없습니다. Firebase 콘솔 설정이 필요합니다.";
+      }
+      
+      alert(`로그인 오류 (${errorCode}): ${errorMessage}\n\n분석: ${analysis}`);
     }
   };
 

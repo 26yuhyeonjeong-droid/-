@@ -75,27 +75,10 @@ export default function App() {
       const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
         if (!snapshot.empty) {
           const cats = snapshot.docs.map(doc => doc.data() as any);
+          // Maintain fixed order from INITIAL_CONTENT
+          const order = INITIAL_CONTENT.categories.map(c => c.id);
+          cats.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
           setContent(prev => ({ ...prev, categories: cats }));
-        }
-      });
-
-      // Fallback for migration: still listen to global if any part is missing
-      const unsubGlobal = onSnapshot(doc(db, 'content', 'global'), (snapshot) => {
-        if (snapshot.exists()) {
-          const globalData = snapshot.data() as SiteContent;
-          if (!globalData) return;
-          
-          setContent(prev => {
-            const newAbout = (!prev.about.avatar || prev.about.avatar === INITIAL_CONTENT.about.avatar) && globalData.about?.avatar ? globalData.about : prev.about;
-            const newSocial = prev.socialLinks.length <= 2 && globalData.socialLinks?.length > 0 ? globalData.socialLinks : prev.socialLinks;
-            const newCats = (!prev.categories || prev.categories.length <= 4) && globalData.categories?.length > 0 ? globalData.categories : prev.categories;
-            return {
-              ...prev,
-              about: newAbout || prev.about,
-              socialLinks: newSocial || prev.socialLinks,
-              categories: newCats || prev.categories
-            };
-          });
         }
       });
 
@@ -103,7 +86,6 @@ export default function App() {
         unsubAbout();
         unsubSocial();
         unsubCategories();
-        unsubGlobal();
       };
     } catch (e) {
       console.error("Firebase Content initiation error:", e);
