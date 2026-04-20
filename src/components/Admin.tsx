@@ -416,6 +416,10 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
                   <label className="text-[10px] uppercase tracking-[2px] text-text-secondary mb-3 block">소개글</label>
                   <input value={content.about.description} onChange={e => syncGlobalContent({ ...content, about: { ...content.about, description: e.target.value }})} className="w-full bg-surface border border-border p-4 outline-none" />
                 </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-[2px] text-text-secondary mb-3 block">이메일</label>
+                  <input value={content.about.email} onChange={e => syncGlobalContent({ ...content, about: { ...content.about, email: e.target.value }})} className="w-full bg-surface border border-border p-4 outline-none" />
+                </div>
               </div>
             </div>
           </div>
