@@ -233,12 +233,20 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
   if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center p-4 z-[101]">
-        <div className="text-white text-[10px] uppercase tracking-[4px] animate-pulse">인증 확인 중 / AUTH CHECKING...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-white text-[10px] uppercase tracking-[4px] animate-pulse">인증 확인 중 / AUTH CHECKING...</div>
+          <button 
+            onClick={() => setIsLoadingAuth(false)} 
+            className="text-[8px] text-white/30 uppercase tracking-widest hover:text-white"
+          >
+            건너뛰기 (오류 시) / SKIP IF STUCK
+          </button>
+        </div>
       </div>
     );
   }
 
-  const isAdmin = user && user.email === '26.yuhyeonjeong@gmail.com';
+  const isAdmin = user && user.email?.toLowerCase() === '26.yuhyeonjeong@gmail.com';
 
   if (!user || !isAdmin) {
     return (
