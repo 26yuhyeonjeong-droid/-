@@ -14,7 +14,7 @@ let firebaseConfig = {
 };
 
 // @ts-ignore - This file is created dynamically during build/provisioning
-import config from '../../firebase-applet-config.json' assert { type: 'json' };
+import config from '../../firebase-applet-config.json';
 if (config) {
   firebaseConfig = config as any;
 }

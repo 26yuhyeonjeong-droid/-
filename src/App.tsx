@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Project, SiteContent } from './types';
 import { INITIAL_PROJECTS, INITIAL_CONTENT } from './constants';
 import Navbar from './components/Navbar';
@@ -22,34 +22,92 @@ export default function App() {
   const [content, setContent] = useState<SiteContent>(INITIAL_CONTENT);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Safety timer for loading state
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Loading timed out. Proceeding to app...");
+        setIsLoading(false);
+      }
+    }, 5000); // 5 seconds fallback
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   // Sync projects from Firestore
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
-      const projectsData = snapshot.docs.map(doc => doc.data() as Project);
-      if (projectsData.length > 0) {
-        // Sort by order if available, otherwise fallback to initial order
-        setProjects(projectsData.sort((a, b) => (a as any).order - (b as any).order || 0));
-      }
+    try {
+      const unsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
+        if (!snapshot.empty) {
+          const projectsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
+          const sorted = [...projectsData].sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
+          setProjects(sorted);
+        }
+        setIsLoading(false);
+      }, (error) => {
+        console.error("Firestore Projects Sync Error:", error);
+        setIsLoading(false);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.error("Firebase Projects initiation error:", e);
       setIsLoading(false);
-    }, (error) => {
-      console.error("Firestore Projects Sync Error:", error);
-      setIsLoading(false);
-    });
-
-    return () => unsub();
+    }
   }, []);
 
-  // Sync content from Firestore
+  // Sync site content from Firestore (refactored to split documents)
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'content', 'global'), (snapshot) => {
-      if (snapshot.exists()) {
-        setContent(snapshot.data() as SiteContent);
-      }
-    }, (error) => {
-      console.error("Firestore Content Sync Error:", error);
-    });
+    try {
+      const unsubAbout = onSnapshot(doc(db, 'content', 'about'), (snapshot) => {
+        if (snapshot.exists()) {
+          setContent(prev => ({ ...prev, about: { ...prev.about, ...snapshot.data() } as any }));
+        }
+      });
 
-    return () => unsub();
+      const unsubSocial = onSnapshot(doc(db, 'content', 'social'), (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data() as any;
+          if (data.links) {
+            setContent(prev => ({ ...prev, socialLinks: data.links }));
+          }
+        }
+      });
+
+      const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
+        if (!snapshot.empty) {
+          const cats = snapshot.docs.map(doc => doc.data() as any);
+          setContent(prev => ({ ...prev, categories: cats }));
+        }
+      });
+
+      // Fallback for migration: still listen to global if any part is missing
+      const unsubGlobal = onSnapshot(doc(db, 'content', 'global'), (snapshot) => {
+        if (snapshot.exists()) {
+          const globalData = snapshot.data() as SiteContent;
+          if (!globalData) return;
+          
+          setContent(prev => {
+            const newAbout = (!prev.about.avatar || prev.about.avatar === INITIAL_CONTENT.about.avatar) && globalData.about?.avatar ? globalData.about : prev.about;
+            const newSocial = prev.socialLinks.length <= 2 && globalData.socialLinks?.length > 0 ? globalData.socialLinks : prev.socialLinks;
+            const newCats = (!prev.categories || prev.categories.length <= 4) && globalData.categories?.length > 0 ? globalData.categories : prev.categories;
+            return {
+              ...prev,
+              about: newAbout || prev.about,
+              socialLinks: newSocial || prev.socialLinks,
+              categories: newCats || prev.categories
+            };
+          });
+        }
+      });
+
+      return () => {
+        unsubAbout();
+        unsubSocial();
+        unsubCategories();
+        unsubGlobal();
+      };
+    } catch (e) {
+      console.error("Firebase Content initiation error:", e);
+    }
   }, []);
 
   // Initialize DB with default values if empty (optional but helpful for first run)

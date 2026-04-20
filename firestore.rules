@@ -28,9 +28,15 @@ service cloud.firestore {
     }
 
     // Content collection
-    match /content/global {
-      allow read: if true; // Publicly readable
-      allow write: if isVerifiedOwner();
+    match /content/{docId} {
+      allow read: if true;
+      allow write: if isVerifiedOwner() && (docId == 'about' || docId == 'social' || docId == 'global');
+    }
+
+    // Categories collection
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isVerifiedOwner() && isValidId(categoryId);
     }
   }
 }
