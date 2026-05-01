@@ -155,6 +155,39 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
     }, 1000); // 1.0 second debounce for continuous edits
   };
 
+  const handleBulkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file: File, index) => {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const result = await compressImage(reader.result as string);
+        const newProject: Project = {
+          id: `${Date.now()}-${index}`,
+          title: '', // Empty title as requested
+          description: '',
+          type: 'photography',
+          thumbnail: result,
+          media: [result],
+          category: '행사사진', // Default to event photos as requested context implies it
+          equipment: '',
+          client: '',
+        };
+        
+        try {
+          await setDoc(doc(db, 'projects', newProject.id), {
+            ...newProject,
+            order: projects.length + index
+          });
+        } catch (err) {
+          console.error("Bulk Upload Save Error:", err);
+        }
+      };
+      reader.readAsDataURL(file as Blob);
+    });
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'thumbnail' | 'media') => {
     const files = e.target.files;
     if (!files) return;
@@ -318,12 +351,18 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
             </button>
           </div>
         </div>
-        <button 
-          onClick={createNewProject}
-          className="flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-neutral-200 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> 프로젝트 추가 / ADD WORK
-        </button>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 bg-neutral-900 border border-white/10 text-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-neutral-800 transition-colors cursor-pointer">
+            <Plus className="w-4 h-4" /> 사진 일괄 업로드 / BULK UPLOAD
+            <input type="file" multiple accept="image/*" className="hidden" onChange={handleBulkUpload} />
+          </label>
+          <button 
+            onClick={createNewProject}
+            className="flex items-center gap-2 bg-white text-black px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-neutral-200 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> 프로젝트 추가 / ADD WORK
+          </button>
+        </div>
       </div>
 
       <div className="space-y-16 mb-24">
@@ -443,7 +482,7 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {categories.map((cat) => (
             <div key={cat.id} className="space-y-4 bg-surface p-6 border border-border group transition-all hover:border-white/20">
-              <div className="aspect-[16/10] overflow-hidden relative">
+              <div className="aspect-[3/2] overflow-hidden relative">
                 <img src={cat.img || null} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" referrerPolicy="no-referrer" />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <label className="cursor-pointer bg-white text-black px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-200">
@@ -509,7 +548,7 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
                   <div>
                     <label className="text-[10px] uppercase tracking-[2px] text-text-secondary mb-3 block">썸네일 이미지 / THUMBNAIL</label>
                     <div className="flex gap-4 items-end">
-                      {editingProject.thumbnail && <img src={editingProject.thumbnail} className="w-20 h-20 object-cover border border-border grayscale" referrerPolicy="no-referrer" />}
+                      {editingProject.thumbnail && <img src={editingProject.thumbnail} className="w-24 aspect-[3/2] object-cover border border-border grayscale" referrerPolicy="no-referrer" />}
                       <input type="file" accept="image/*" onChange={e => handleFileUpload(e, 'thumbnail')} className="flex-1 text-[10px] text-text-secondary file:bg-white file:text-black file:border-none file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase cursor-pointer" />
                     </div>
                   </div>
@@ -525,11 +564,11 @@ export default function Admin({ projects, setProjects, content, setContent }: Ad
                 <div className="space-y-4">
                   <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
                     {editingProject.media.map((m, i) => (
-                      <div key={i} className="relative group aspect-square">
+                      <div key={i} className="relative group aspect-[3/2]">
                         {m.startsWith('data:image') || m.includes('picsum') ? (
                           <img src={m} className="w-full h-full object-cover border border-border grayscale" referrerPolicy="no-referrer" />
                         ) : (
-                          <div className="w-full h-full bg-surface border border-border flex items-center justify-center text-[8px] text-center p-1 break-all">VIDEO / LINK</div>
+                          <div className="w-full h-full bg-surface border border-border flex items-center justify-center text-[8px] text-center p-1 break-all uppercase">VIDEO / LINK</div>
                         )}
                         <button type="button" onClick={() => setEditingProject({...editingProject, media: editingProject.media.filter((_, idx) => idx !== i)})} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <X className="w-2 h-2" />
@@ -575,7 +614,7 @@ function SortableItem({ project, setEditingProject, deleteProject }: { project: 
     <div ref={setNodeRef} style={style} className="bg-surface border border-border p-4 group hover:border-white/20 transition-all relative rounded-[2px]">
       <div {...attributes} {...listeners} className="absolute inset-0 cursor-grab active:cursor-grabbing z-0" />
       <div className="relative z-10 pointer-events-none">
-        <div className="aspect-video mb-4 overflow-hidden rounded-[1px] border border-border/20">
+        <div className="aspect-[3/2] mb-4 overflow-hidden rounded-[1px] border border-border/20">
           <img src={project.thumbnail || null} className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" referrerPolicy="no-referrer" />
         </div>
         <div className="flex justify-between items-center bg-bg/50 backdrop-blur-sm p-3 -mx-4 -mb-4 mt-2">

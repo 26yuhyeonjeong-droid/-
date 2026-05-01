@@ -104,12 +104,12 @@ export default function ProjectDetail({ projects, selectedCategory }: { projects
                   />
                 </div>
               ) : (
-                <div className="relative overflow-hidden">
+                <div className="relative overflow-hidden aspect-[3/2] bg-surface">
                   <img
                     src={url || null}
                     alt={`${project.title} media ${index + 1}`}
                     referrerPolicy="no-referrer"
-                    className="w-full h-auto object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
+                    className="w-full h-full object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-1000"
                   />
                   <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   <button 

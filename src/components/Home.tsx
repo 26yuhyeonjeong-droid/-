@@ -49,10 +49,16 @@ export default function Home({
             >
               <img 
                 src={categoryImg || null} 
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                className={cn(
+                  "absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110",
+                  !selectedCategory || isActive ? "grayscale-0 opacity-100" : "grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100"
+                )}
                 referrerPolicy="no-referrer"
               />
-              <div className={`absolute inset-0 transition-opacity duration-700 ${isActive ? 'bg-black/40' : 'bg-black/60 group-hover:bg-black/40'}`} />
+              <div className={cn(
+                "absolute inset-0 transition-opacity duration-700",
+                !selectedCategory || isActive ? "bg-black/20" : "bg-black/60 group-hover:bg-black/40"
+              )} />
               
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                 <span className="text-[10px] uppercase tracking-[4px] text-white/50 mb-2">{cat.en}</span>
@@ -106,16 +112,16 @@ export default function Home({
               >
                 <Link to={`/works/${project.id}`}>
                   {selectedCategory === '행사사진' ? (
-                    <div className="aspect-square overflow-hidden rounded-[2px] bg-surface relative">
+                    <div className="aspect-[3/2] overflow-hidden rounded-[2px] bg-surface relative">
                       <img 
                         src={project.thumbnail || null} 
-                        className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110" 
+                        className="w-full h-full object-cover grayscale-0 opacity-100 transition-all duration-500 group-hover:scale-110" 
                         referrerPolicy="no-referrer"
                       />
                     </div>
                   ) : (
                     <>
-                      <div className="aspect-[16/10] overflow-hidden rounded-[4px] bg-surface mb-4 relative">
+                      <div className="aspect-[3/2] overflow-hidden rounded-[4px] bg-surface mb-4 relative">
                         <img 
                           src={project.thumbnail || null} 
                           className="w-full h-full object-cover grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" 
