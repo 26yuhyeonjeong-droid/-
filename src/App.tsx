@@ -18,20 +18,24 @@ import { db, collection, onSnapshot, doc, getDoc, setDoc } from './lib/firebase'
 
 export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [content, setContent] = useState<SiteContent>(INITIAL_CONTENT);
   const [isLoading, setIsLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState({
+    projects: false,
+    about: false,
+    social: false,
+    categories: false
+  });
 
-  // Safety timer for loading state
+  // Consolidated loading check
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (isLoading) {
-        console.warn("Loading timed out. Proceeding to app...");
-        setIsLoading(false);
-      }
-    }, 5000); // 5 seconds fallback
-    return () => clearTimeout(timer);
-  }, [isLoading]);
+    if (dataLoaded.projects && dataLoaded.about && dataLoaded.social && dataLoaded.categories) {
+      // Small delay for smooth transition
+      const timer = setTimeout(() => setIsLoading(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [dataLoaded]);
 
   // Sync projects from Firestore
   useEffect(() => {
@@ -41,11 +45,13 @@ export default function App() {
           const projectsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project));
           const sorted = [...projectsData].sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
           setProjects(sorted);
+        } else {
+          setProjects([]);
         }
-        setIsLoading(false);
+        setDataLoaded(prev => ({ ...prev, projects: true }));
       }, (error) => {
         console.error("Firestore Projects Sync Error:", error);
-        setIsLoading(false);
+        setDataLoaded(prev => ({ ...prev, projects: true }));
       });
       return () => unsub();
     } catch (e) {
@@ -61,7 +67,8 @@ export default function App() {
         if (snapshot.exists()) {
           setContent(prev => ({ ...prev, about: { ...prev.about, ...snapshot.data() } as any }));
         }
-      });
+        setDataLoaded(prev => ({ ...prev, about: true }));
+      }, () => setDataLoaded(prev => ({ ...prev, about: true })));
 
       const unsubSocial = onSnapshot(doc(db, 'content', 'social'), (snapshot) => {
         if (snapshot.exists()) {
@@ -70,7 +77,8 @@ export default function App() {
             setContent(prev => ({ ...prev, socialLinks: data.links }));
           }
         }
-      });
+        setDataLoaded(prev => ({ ...prev, social: true }));
+      }, () => setDataLoaded(prev => ({ ...prev, social: true })));
 
       const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
         if (!snapshot.empty) {
@@ -80,7 +88,8 @@ export default function App() {
           cats.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
           setContent(prev => ({ ...prev, categories: cats }));
         }
-      });
+        setDataLoaded(prev => ({ ...prev, categories: true }));
+      }, () => setDataLoaded(prev => ({ ...prev, categories: true })));
 
       return () => {
         unsubAbout();
